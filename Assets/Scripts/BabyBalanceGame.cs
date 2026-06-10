@@ -5,12 +5,25 @@ using UnityEngine.UI;
 public class BabyBalanceGame : MonoBehaviour
 {
     [Header("Scene References")]
+    [Tooltip("The left arm/cast object. If left empty, the script looks for an object named Placeholder_Arm_Left.")]
     [SerializeField] private Transform leftArm;
+
+    [Tooltip("The right arm/cast object. If left empty, the script looks for an object named Placeholder_Arm_Right.")]
     [SerializeField] private Transform rightArm;
+
+    [Tooltip("The baby object that slides, wiggles, and tilts as balance gets worse. If left empty, the script looks for Placeholder_Baby.")]
     [SerializeField] private Transform baby;
+
+    [Tooltip("The moving line/marker on the balance meter. Its local X position represents the current balance value.")]
     [SerializeField] private Transform meterMarker;
+
+    [Tooltip("The background bar for the balance meter. This is optional unless you want to use your own meter art.")]
     [SerializeField] private Transform meterBar;
+
+    [Tooltip("Optional UI Text for control/status messages. If left empty, the script uses a simple built-in game view label.")]
     [SerializeField] private Text statusText;
+
+    [Tooltip("Optional UI Text for the survival timer. If left empty, the script uses a simple built-in game view label.")]
     [SerializeField] private Text timerText;
 
     [Header("Input")]
@@ -18,37 +31,80 @@ public class BabyBalanceGame : MonoBehaviour
     [SerializeField] private InputActionReference holdButton;
 
     [Header("Balance")]
+    [Tooltip("How fast the balance marker moves at the start of the game. Higher values make the game harder right away.")]
     [SerializeField, Min(0f)] private float startingSpeed = 0.55f;
+
+    [Tooltip("How much extra speed is added every second. Higher values make the game ramp up faster over time.")]
     [SerializeField, Min(0f)] private float speedIncreasePerSecond = 0.025f;
+
+    [Tooltip("How strongly the held/released button pushes the balance left or right. Usually keep this near 1.")]
     [SerializeField, Min(0f)] private float buttonInfluence = 1f;
+
+    [Tooltip("How strongly the baby's random squirming pushes the balance around. Higher values make the baby feel wilder.")]
     [SerializeField, Min(0f)] private float squirmInfluence = 0.42f;
+
+    [Tooltip("How often the baby chooses a new random squirm direction, in seconds. Lower values change direction more often.")]
     [SerializeField, Min(0.01f)] private float squirmChangeInterval = 0.55f;
+
+    [Tooltip("How quickly the current squirm force moves toward its new random target. Higher values feel jerkier and more reactive.")]
     [SerializeField, Min(0f)] private float squirmResponseSpeed = 2.2f;
+
+    [Tooltip("How close to an edge the marker must be before danger visuals start. 0.72 means danger starts at 72% of the way to either edge.")]
     [SerializeField, Range(0f, 1f)] private float dangerZoneStartsAt = 0.72f;
 
     [Header("Arm Visuals")]
+    [Tooltip("How far the arms move up and down as the balance marker moves. Higher values make the arm height change more dramatic.")]
     [SerializeField] private float armHeightOffset = 0.9f;
+
+    [Tooltip("How many degrees the arms rotate at full imbalance. Higher values make the casts tilt more.")]
     [SerializeField] private float armTiltDegrees = 14f;
+
+    [Tooltip("How quickly the arms catch up to their target positions. Higher values are snappier; lower values are floatier.")]
     [SerializeField, Min(0f)] private float armFollowSpeed = 12f;
 
     [Header("Baby Visuals")]
+    [Tooltip("How far the baby slides left/right with the balance marker before danger extra sliding is added.")]
     [SerializeField] private float babySlideDistance = 1.15f;
+
+    [Tooltip("Extra sideways slide added only in the danger zone, making the baby look close to falling out.")]
     [SerializeField] private float babyDangerSlideDistance = 0.8f;
+
+    [Tooltip("How far down the baby drops in the danger zone, making the baby look less supported by the arms.")]
     [SerializeField] private float babyDangerDropDistance = 0.65f;
+
+    [Tooltip("How many degrees the baby tilts at full imbalance. Higher values make the almost-falling pose stronger.")]
     [SerializeField] private float babyTiltDegrees = 38f;
+
+    [Tooltip("Small up/down wiggle amount from the baby's squirming.")]
     [SerializeField] private float babySquirmPosition = 0.14f;
+
+    [Tooltip("Small rotation wiggle amount from the baby's squirming.")]
     [SerializeField] private float babySquirmRotation = 7f;
+
+    [Tooltip("How quickly the baby catches up to its target pose. Higher values are snappier; lower values are floatier.")]
     [SerializeField, Min(0f)] private float babyFollowSpeed = 10f;
 
     [Header("Meter Visuals")]
+    [Tooltip("If true, the script creates a simple bar and marker at runtime when Meter Bar or Meter Marker is empty.")]
     [SerializeField] private bool createMeterIfMissing = true;
+
+    [Tooltip("World position for the generated meter, relative to this GameObject.")]
     [SerializeField] private Vector2 generatedMeterPosition = new Vector2(0f, 4.1f);
+
+    [Tooltip("Half the usable width of the meter. The marker moves from -this value to +this value.")]
     [SerializeField, Min(0.1f)] private float meterHalfWidth = 3f;
+
+    [Tooltip("Marker color when the baby is safely balanced near the middle.")]
     [SerializeField] private Color safeMeterColor = new Color(0.15f, 0.9f, 0.45f);
+
+    [Tooltip("Marker color when the baby is close to being dropped.")]
     [SerializeField] private Color dangerMeterColor = new Color(1f, 0.28f, 0.2f);
 
     [Header("Restart")]
+    [Tooltip("If true, holding the balance button after losing restarts the game.")]
     [SerializeField] private bool allowButtonToRestart = true;
+
+    [Tooltip("How long after losing the player must wait before the button can restart the game.")]
     [SerializeField, Min(0f)] private float restartDelay = 0.35f;
 
     private InputAction fallbackHoldAction;
@@ -63,6 +119,7 @@ public class BabyBalanceGame : MonoBehaviour
 
     private SpriteRenderer meterBarRenderer;
     private SpriteRenderer meterMarkerRenderer;
+    // Balance is the main game state: -1 means fully left, 0 means safe center, 1 means fully right.
     private float balance;
     private float elapsedTime;
     private float gameOverTime;
@@ -154,6 +211,7 @@ public class BabyBalanceGame : MonoBehaviour
 
         if (squirmTimer <= 0f)
         {
+            // Pick a new random force so the player cannot simply memorize one perfect rhythm.
             squirmTarget = Random.Range(-1f, 1f);
             squirmTimer = squirmChangeInterval;
         }
@@ -164,6 +222,8 @@ public class BabyBalanceGame : MonoBehaviour
     private void UpdateBalance(bool isHolding, float deltaTime)
     {
         float currentSpeed = startingSpeed + elapsedTime * speedIncreasePerSecond;
+
+        // Releasing the button pushes one way; holding it pushes the other way.
         float buttonDirection = isHolding ? -1f : 1f;
         float drift = buttonDirection * buttonInfluence + squirm * squirmInfluence;
 
@@ -172,6 +232,7 @@ public class BabyBalanceGame : MonoBehaviour
 
     private void UpdateVisuals(float deltaTime)
     {
+        // Exponential smoothing makes the visuals catch up smoothly without depending on frame rate.
         float visualStep = 1f - Mathf.Exp(-armFollowSpeed * deltaTime);
         float babyStep = 1f - Mathf.Exp(-babyFollowSpeed * deltaTime);
         float dangerAmount = GetDangerAmount();
@@ -235,6 +296,7 @@ public class BabyBalanceGame : MonoBehaviour
 
     private float GetDangerAmount()
     {
+        // Converts the balance value into 0 = safe, 1 = at the edge.
         float dangerRange = Mathf.Max(0.01f, 1f - dangerZoneStartsAt);
         return Mathf.Clamp01((Mathf.Abs(balance) - dangerZoneStartsAt) / dangerRange);
     }

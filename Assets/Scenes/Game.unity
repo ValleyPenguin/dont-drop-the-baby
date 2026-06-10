@@ -749,12 +749,12 @@ MonoBehaviour:
   squirmResponseSpeed: 2.2
   dangerZoneStartsAt: 0.72
   armHeightOffset: 0.9
-  armTiltDegrees: 14
+  armTiltDegrees: 30
   armFollowSpeed: 12
   babySlideDistance: 1.15
   babyDangerSlideDistance: 0.8
   babyDangerDropDistance: 0.65
-  babyTiltDegrees: 38
+  babyTiltDegrees: 50
   babySquirmPosition: 0.14
   babySquirmRotation: 7
   babyFollowSpeed: 10
