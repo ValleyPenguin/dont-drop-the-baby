@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class BabyBalanceHud : MonoBehaviour
 {
@@ -10,7 +11,23 @@ public class BabyBalanceHud : MonoBehaviour
     [Tooltip("Optional UI Text for the survival timer. If left empty, this component uses a simple built-in game view label.")]
     [SerializeField] private Text timerText;
 
+    [Tooltip("Optional TextMeshPro text for the survival timer. If left empty, this component looks for an object named TimerText.")]
+    [SerializeField] private TMP_Text timerTmpText;
+
+    [Header("End Panels")]
+    [Tooltip("Panel shown only after the player wins. If empty, this component looks for an object named WinPanel.")]
+    [SerializeField] private GameObject winPanel;
+
+    [Tooltip("Panel shown only after the player drops the baby. If empty, this component looks for an object named LosePanel.")]
+    [SerializeField] private GameObject losePanel;
+
     [SerializeField, HideInInspector] private BabyBalanceGame game;
+
+    private void Reset()
+    {
+        AutoFindTextReferences();
+        AutoFindEndPanels();
+    }
 
     private void Awake()
     {
@@ -18,6 +35,10 @@ public class BabyBalanceHud : MonoBehaviour
         {
             game = GetComponent<BabyBalanceGame>();
         }
+
+        AutoFindTextReferences();
+        AutoFindEndPanels();
+        HideEndPanels();
     }
 
     public void UpdateText(BabyBalanceGame sourceGame)
@@ -29,15 +50,17 @@ public class BabyBalanceHud : MonoBehaviour
             return;
         }
 
-        if (timerText != null)
-        {
-            timerText.text = sourceGame.IsTargetChaseMode
-                ? $"Time: {sourceGame.ElapsedTime:0.0}  Stability: {sourceGame.Stability:P0}"
-                : $"Time: {sourceGame.ElapsedTime:0.0}";
-        }
+        SetTimerText(sourceGame.TimeRemainingWholeSeconds.ToString());
+        UpdatePanels(sourceGame);
 
         if (statusText == null)
         {
+            return;
+        }
+
+        if (sourceGame.IsGameWon)
+        {
+            statusText.text = "You win!";
             return;
         }
 
@@ -52,34 +75,73 @@ public class BabyBalanceHud : MonoBehaviour
             : "Hold Space or Left Mouse";
     }
 
-    private void OnGUI()
+    public void HideEndPanels()
     {
-        if (game == null)
-        {
-            game = GetComponent<BabyBalanceGame>();
-        }
+        SetPanelActive(winPanel, false);
+        SetPanelActive(losePanel, false);
+    }
 
-        if (game == null || (!game.IsGameOver && timerText != null && statusText != null))
+    private void AutoFindTextReferences()
+    {
+        if (timerText != null && timerTmpText != null)
         {
             return;
         }
 
-        GUIStyle style = new GUIStyle(GUI.skin.label)
+        GameObject timerObject = GameObject.Find("TimerText");
+        if (timerObject == null)
         {
-            alignment = TextAnchor.MiddleCenter,
-            fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.032f), 18, 28),
-            wordWrap = true,
-            normal = { textColor = Color.white }
-        };
+            return;
+        }
 
-        string modeDetails = game.IsTargetChaseMode
-            ? $"\nStability: {game.Stability:P0}"
-            : "";
+        if (timerText == null)
+        {
+            timerText = timerObject.GetComponent<Text>();
+        }
 
-        string message = game.IsGameOver
-            ? $"Dropped!\nTime: {game.ElapsedTime:0.0}{modeDetails}\nHold Space or Left Mouse to retry"
-            : $"Time: {game.ElapsedTime:0.0}{modeDetails}";
+        if (timerTmpText == null)
+        {
+            timerTmpText = timerObject.GetComponent<TMP_Text>();
+        }
+    }
 
-        GUI.Label(new Rect(20f, 24f, Screen.width - 40f, 180f), message, style);
+    private void AutoFindEndPanels()
+    {
+        if (winPanel == null)
+        {
+            winPanel = GameObject.Find("WinPanel");
+        }
+
+        if (losePanel == null)
+        {
+            losePanel = GameObject.Find("LosePanel");
+        }
+    }
+
+    private void UpdatePanels(BabyBalanceGame sourceGame)
+    {
+        SetPanelActive(winPanel, sourceGame.IsGameWon);
+        SetPanelActive(losePanel, sourceGame.IsGameOver);
+    }
+
+    private static void SetPanelActive(GameObject panel, bool isActive)
+    {
+        if (panel != null && panel.activeSelf != isActive)
+        {
+            panel.SetActive(isActive);
+        }
+    }
+
+    private void SetTimerText(string text)
+    {
+        if (timerText != null)
+        {
+            timerText.text = text;
+        }
+
+        if (timerTmpText != null)
+        {
+            timerTmpText.text = text;
+        }
     }
 }

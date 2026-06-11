@@ -32,10 +32,21 @@ public class BabyBalanceMeter : MonoBehaviour
     [Tooltip("Marker color when the baby is close to being dropped.")]
     [SerializeField] private Color dangerMeterColor = new Color(1f, 0.28f, 0.2f);
 
+    [Header("Marker Difficulty")]
+    [Tooltip("If true, the marker gets narrower over time, making it harder to overlap the target.")]
+    [SerializeField] private bool shrinkMarkerOverTime = true;
+
+    [Tooltip("How many seconds it takes the marker to reach its minimum width multiplier.")]
+    [SerializeField, Min(0.01f)] private float markerShrinkDuration = 60f;
+
+    [Tooltip("Smallest marker width as a multiplier of its starting X scale. 0.4 means the marker ends at 40% of its original width.")]
+    [SerializeField, Range(0.05f, 1f)] private float minimumMarkerWidthMultiplier = 0.4f;
+
     private SpriteRenderer meterBarRenderer;
     private SpriteRenderer meterMarkerRenderer;
     private SpriteRenderer balanceTargetRenderer;
     private float targetHalfWidthFallback = 0.16f;
+    private float markerStartingScaleX = 1f;
 
     public void Reset()
     {
@@ -52,6 +63,8 @@ public class BabyBalanceMeter : MonoBehaviour
         }
 
         CacheRenderers();
+        CacheMarkerStartingScale();
+        UpdateMarkerWidth(0f);
     }
 
     public void EnsureTargetIfMissing(Color targetColor, float targetHalfWidth)
@@ -128,6 +141,30 @@ public class BabyBalanceMeter : MonoBehaviour
         }
     }
 
+    public void UpdateMarkerWidth(float elapsedTime)
+    {
+        if (meterMarker == null)
+        {
+            return;
+        }
+
+        float widthMultiplier = 1f;
+        if (shrinkMarkerOverTime)
+        {
+            float shrinkAmount = Mathf.Clamp01(elapsedTime / markerShrinkDuration);
+            widthMultiplier = Mathf.Lerp(1f, minimumMarkerWidthMultiplier, shrinkAmount);
+        }
+
+        Vector3 markerScale = meterMarker.localScale;
+        markerScale.x = markerStartingScaleX * widthMultiplier;
+        meterMarker.localScale = markerScale;
+    }
+
+    public void ResetMarkerWidth()
+    {
+        UpdateMarkerWidth(0f);
+    }
+
     public bool IsMarkerOverTargetEnough(float requiredTargetOverlap, float targetHalfWidth)
     {
         if (meterMarker == null || balanceTarget == null)
@@ -179,6 +216,14 @@ public class BabyBalanceMeter : MonoBehaviour
         meterBarRenderer = meterBar != null ? meterBar.GetComponent<SpriteRenderer>() : null;
         meterMarkerRenderer = meterMarker != null ? meterMarker.GetComponent<SpriteRenderer>() : null;
         balanceTargetRenderer = balanceTarget != null ? balanceTarget.GetComponent<SpriteRenderer>() : null;
+    }
+
+    private void CacheMarkerStartingScale()
+    {
+        if (meterMarker != null)
+        {
+            markerStartingScaleX = meterMarker.localScale.x;
+        }
     }
 
     private void CreateSimpleMeter()

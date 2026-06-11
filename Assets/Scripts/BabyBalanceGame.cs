@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Events;
 
 public class BabyBalanceGame : MonoBehaviour
 {
@@ -49,6 +50,13 @@ public class BabyBalanceGame : MonoBehaviour
     [Tooltip("How quickly the current squirm force moves toward its new random target. Higher values feel jerkier and more reactive.")]
     [SerializeField, Min(0f)] private float squirmResponseSpeed = 2.2f;
 
+    [Header("Win")]
+    [Tooltip("The player wins after surviving this many seconds without dropping the baby. Set to 0 to disable the win condition.")]
+    [SerializeField, Min(0f)] private float winAfterSeconds = 30f;
+
+    [Tooltip("Invoked once when the player survives long enough to win. Hook your win screen here.")]
+    [SerializeField] private UnityEvent onWin = new UnityEvent();
+
     [Header("Restart")]
     [Tooltip("If true, holding the balance button after losing restarts the game.")]
     [SerializeField] private bool allowButtonToRestart = true;
@@ -61,19 +69,23 @@ public class BabyBalanceGame : MonoBehaviour
 
     private float balance;
     private float elapsedTime;
-    private float gameOverTime;
+    private float endTime;
     private float stability = 1f;
     private float squirm;
     private float squirmTarget;
     private float squirmTimer;
     private bool isGameOver;
+    private bool isGameWon;
 
     public float Balance => balance;
     public float ElapsedTime => elapsedTime;
+    public float TimeRemainingSeconds => winAfterSeconds > 0f ? Mathf.Max(0f, winAfterSeconds - elapsedTime) : 0f;
+    public int TimeRemainingWholeSeconds => Mathf.CeilToInt(TimeRemainingSeconds);
     public float Stability => stability;
     public float Squirm => squirm;
     public bool IsMarkerOnTarget => targetChase != null && targetChase.IsMarkerOnTarget;
     public bool IsGameOver => isGameOver;
+    public bool IsGameWon => isGameWon;
     public bool IsTargetChaseMode => gameMode == GameMode.TargetChaseBalance;
 
     internal float ButtonInfluence => buttonInfluence;
@@ -140,9 +152,9 @@ public class BabyBalanceGame : MonoBehaviour
 
         bool isHolding = ActiveHoldAction != null && ActiveHoldAction.IsPressed();
 
-        if (isGameOver)
+        if (isGameOver || isGameWon)
         {
-            if (allowButtonToRestart && Time.time >= gameOverTime + restartDelay && isHolding)
+            if (allowButtonToRestart && Time.time >= endTime + restartDelay && isHolding)
             {
                 RestartGame();
             }
@@ -163,12 +175,19 @@ public class BabyBalanceGame : MonoBehaviour
             UpdateClassicBalance(isHolding, Time.deltaTime);
         }
 
+        meter?.UpdateMarkerWidth(elapsedTime);
         visuals?.UpdateVisuals(this, targetChase, meter, Time.deltaTime);
         hud?.UpdateText(this);
 
         if (ShouldLose())
         {
             LoseGame();
+            return;
+        }
+
+        if (ShouldWin())
+        {
+            WinGame();
         }
     }
 
@@ -230,12 +249,25 @@ public class BabyBalanceGame : MonoBehaviour
         return Mathf.Abs(balance) >= 1f;
     }
 
+    private bool ShouldWin()
+    {
+        return winAfterSeconds > 0f && elapsedTime >= winAfterSeconds;
+    }
+
     private void LoseGame()
     {
         isGameOver = true;
-        gameOverTime = Time.time;
+        endTime = Time.time;
         SetBalance(balance);
         hud?.UpdateText(this);
+    }
+
+    private void WinGame()
+    {
+        isGameWon = true;
+        endTime = Time.time;
+        hud?.UpdateText(this);
+        onWin.Invoke();
     }
 
     [ContextMenu("Restart Game")]
@@ -243,13 +275,15 @@ public class BabyBalanceGame : MonoBehaviour
     {
         balance = 0f;
         elapsedTime = 0f;
-        gameOverTime = 0f;
+        endTime = 0f;
         stability = 1f;
         squirm = 0f;
         squirmTarget = 0f;
         squirmTimer = 0f;
+        meter?.ResetMarkerWidth();
         targetChase?.ResetState();
         isGameOver = false;
+        isGameWon = false;
         hud?.UpdateText(this);
     }
 }
