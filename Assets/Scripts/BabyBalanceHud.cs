@@ -21,7 +21,17 @@ public class BabyBalanceHud : MonoBehaviour
     [Tooltip("Panel shown only after the player drops the baby. If empty, this component looks for an object named LosePanel.")]
     [SerializeField] private GameObject losePanel;
 
+    [Tooltip("If true, text inside the win and lose panels blinks while that panel is visible.")]
+    [SerializeField] private bool flashEndPanelText = true;
+
+    [Tooltip("How often win and lose panel text switches between visible and hidden.")]
+    [SerializeField, Min(0.05f)] private float endPanelTextFlashInterval = 0.35f;
+
     [SerializeField, HideInInspector] private BabyBalanceGame game;
+
+    private GameObject currentEndPanel;
+    private float endPanelFlashTimer;
+    private bool isEndPanelTextVisible = true;
 
     private void Reset()
     {
@@ -41,6 +51,16 @@ public class BabyBalanceHud : MonoBehaviour
         HideEndPanels();
     }
 
+    private void Update()
+    {
+        if (game == null || (!game.IsGameWon && !game.IsGameOver))
+        {
+            return;
+        }
+
+        UpdateEndPanelTextFlash(Time.deltaTime);
+    }
+
     public void UpdateText(BabyBalanceGame sourceGame)
     {
         game = sourceGame;
@@ -52,6 +72,7 @@ public class BabyBalanceHud : MonoBehaviour
 
         SetTimerText(sourceGame.TimeRemainingWholeSeconds.ToString());
         UpdatePanels(sourceGame);
+        UpdateEndPanelTextFlash(0f);
 
         if (statusText == null)
         {
@@ -79,6 +100,11 @@ public class BabyBalanceHud : MonoBehaviour
     {
         SetPanelActive(winPanel, false);
         SetPanelActive(losePanel, false);
+        SetPanelTextVisible(winPanel, true);
+        SetPanelTextVisible(losePanel, true);
+        currentEndPanel = null;
+        endPanelFlashTimer = 0f;
+        isEndPanelTextVisible = true;
     }
 
     private void AutoFindTextReferences()
@@ -120,8 +146,52 @@ public class BabyBalanceHud : MonoBehaviour
 
     private void UpdatePanels(BabyBalanceGame sourceGame)
     {
+        GameObject activeEndPanel = null;
+
+        if (sourceGame.IsGameWon)
+        {
+            activeEndPanel = winPanel;
+        }
+        else if (sourceGame.IsGameOver)
+        {
+            activeEndPanel = losePanel;
+        }
+
+        if (activeEndPanel != currentEndPanel)
+        {
+            SetPanelTextVisible(currentEndPanel, true);
+            currentEndPanel = activeEndPanel;
+            endPanelFlashTimer = 0f;
+            isEndPanelTextVisible = true;
+            SetPanelTextVisible(currentEndPanel, true);
+        }
+
         SetPanelActive(winPanel, sourceGame.IsGameWon);
         SetPanelActive(losePanel, sourceGame.IsGameOver);
+    }
+
+    private void UpdateEndPanelTextFlash(float deltaTime)
+    {
+        if (currentEndPanel == null)
+        {
+            return;
+        }
+
+        if (!flashEndPanelText)
+        {
+            SetPanelTextVisible(currentEndPanel, true);
+            return;
+        }
+
+        endPanelFlashTimer += deltaTime;
+        if (endPanelFlashTimer < endPanelTextFlashInterval)
+        {
+            return;
+        }
+
+        endPanelFlashTimer = 0f;
+        isEndPanelTextVisible = !isEndPanelTextVisible;
+        SetPanelTextVisible(currentEndPanel, isEndPanelTextVisible);
     }
 
     private static void SetPanelActive(GameObject panel, bool isActive)
@@ -129,6 +199,24 @@ public class BabyBalanceHud : MonoBehaviour
         if (panel != null && panel.activeSelf != isActive)
         {
             panel.SetActive(isActive);
+        }
+    }
+
+    private static void SetPanelTextVisible(GameObject panel, bool isVisible)
+    {
+        if (panel == null)
+        {
+            return;
+        }
+
+        foreach (TMP_Text text in panel.GetComponentsInChildren<TMP_Text>(true))
+        {
+            text.enabled = isVisible;
+        }
+
+        foreach (Text text in panel.GetComponentsInChildren<Text>(true))
+        {
+            text.enabled = isVisible;
         }
     }
 

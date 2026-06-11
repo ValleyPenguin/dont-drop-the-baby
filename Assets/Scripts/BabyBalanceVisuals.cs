@@ -62,21 +62,37 @@ public class BabyBalanceVisuals : MonoBehaviour
     [Tooltip("How quickly the baby catches up to its target pose. Higher values are snappier; lower values are floatier.")]
     [SerializeField, Min(0f)] private float babyFollowSpeed = 10f;
 
+    [Header("Baby Expression Sprites")]
+    [Tooltip("Sprite used when the marker is on the target. If empty, this uses the baby's starting sprite.")]
+    [SerializeField] private Sprite normieBabySprite;
+
+    [Tooltip("Sprite used when the marker is not on the target.")]
+    [SerializeField] private Sprite sadBabySprite;
+
+    [Tooltip("Sprite used when the player is close to losing.")]
+    [SerializeField] private Sprite cryingBabySprite;
+
+    [Tooltip("Danger amount where the baby switches to crying. This matches the marker shifting toward orange/red.")]
+    [SerializeField, Range(0f, 1f)] private float cryingDangerStartsAt = 0.55f;
+
     private Vector3 leftArmStartPosition;
     private Vector3 rightArmStartPosition;
     private Vector3 babyStartPosition;
     private Quaternion leftArmStartRotation;
     private Quaternion rightArmStartRotation;
     private Quaternion babyStartRotation;
+    private SpriteRenderer babyRenderer;
 
     private void Reset()
     {
         AutoFindSceneReferences();
+        CacheBabyRenderer();
     }
 
     public void Initialize()
     {
         AutoFindSceneReferences();
+        CacheBabyRenderer();
         CacheStartingPoses();
     }
 
@@ -101,6 +117,7 @@ public class BabyBalanceVisuals : MonoBehaviour
         UpdateArmVisual(leftArm, leftArmStartPosition, leftArmStartRotation, game.Balance, game.Balance, visualStep);
         UpdateArmVisual(rightArm, rightArmStartPosition, rightArmStartRotation, -game.Balance, game.Balance, visualStep);
         UpdateBabyVisual(game, babyStep, dangerAmount, fallDirection, targetTurnWarningAmount, targetTurnWarningDirection);
+        UpdateBabyExpression(game, dangerAmount);
 
         meter?.SetMarkerPosition(game.Balance);
         meter?.UpdateMarkerColor(dangerAmount);
@@ -121,6 +138,16 @@ public class BabyBalanceVisuals : MonoBehaviour
         if (baby == null)
         {
             baby = FindTransformByName("Placeholder_Baby");
+        }
+    }
+
+    private void CacheBabyRenderer()
+    {
+        babyRenderer = baby != null ? baby.GetComponent<SpriteRenderer>() : null;
+
+        if (normieBabySprite == null && babyRenderer != null)
+        {
+            normieBabySprite = babyRenderer.sprite;
         }
     }
 
@@ -189,6 +216,35 @@ public class BabyBalanceVisuals : MonoBehaviour
 
         baby.localPosition = Vector3.Lerp(baby.localPosition, targetPosition, babyStep);
         baby.localRotation = Quaternion.Slerp(baby.localRotation, targetRotation, babyStep);
+    }
+
+    private void UpdateBabyExpression(BabyBalanceGame game, float dangerAmount)
+    {
+        if (babyRenderer == null)
+        {
+            return;
+        }
+
+        Sprite expressionSprite = GetBabyExpressionSprite(game, dangerAmount);
+        if (expressionSprite != null && babyRenderer.sprite != expressionSprite)
+        {
+            babyRenderer.sprite = expressionSprite;
+        }
+    }
+
+    private Sprite GetBabyExpressionSprite(BabyBalanceGame game, float dangerAmount)
+    {
+        if (dangerAmount >= cryingDangerStartsAt)
+        {
+            return cryingBabySprite != null ? cryingBabySprite : sadBabySprite;
+        }
+
+        if (game.IsTargetChaseMode && !game.IsMarkerOnTarget)
+        {
+            return sadBabySprite != null ? sadBabySprite : normieBabySprite;
+        }
+
+        return normieBabySprite;
     }
 
     private float GetDangerAmount(BabyBalanceGame game)
