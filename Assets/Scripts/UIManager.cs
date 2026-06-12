@@ -7,7 +7,6 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject _pauseMenu;
     [SerializeField] private GameObject _winScreen;
     [SerializeField] private GameObject _loseScreen;
-  
     
     private void Awake()
     {

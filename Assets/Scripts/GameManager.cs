@@ -3,6 +3,13 @@ using UnityEngine;
 using UnityEngine.UI;
 public class GameManager : MonoBehaviour
 {
+    
+    /// <summary>
+    /// this should let you be able to quit at any point, I know you had some other ideas for the game but
+    /// I think its better to offer the choice to the player to quit rather than just playing over and over.
+    /// </summary>
+    ///
+    /// 
     public static GameManager Instance;
     
     [SerializeField] private Button _resumeButton;
@@ -53,6 +60,8 @@ public class GameManager : MonoBehaviour
         ShowMouse(true);
         Time.timeScale = 0;
         UIManager.Instance.ShowPauseMenu(true);
+        ShowResumeButton();
+        ShowQuitButton();
     }
     
     private void OnResume()
@@ -60,14 +69,33 @@ public class GameManager : MonoBehaviour
         if (_gameOver) return;
         ShowMouse(false);
         Time.timeScale = 1;
+        ResetButtons();
         UIManager.Instance.ShowPauseMenu(false);
     }
+
+    private void ShowResumeButton()
+    {
+        _resumeButton.gameObject.SetActive(true);
+    }
+
+    private void ShowQuitButton()
+    {
+        _quitButton.gameObject.SetActive(true); 
+    }
+
+    public void ResetButtons()
+    {
+        _resumeButton.gameObject.SetActive(false);
+        _quitButton.gameObject.SetActive(false);
+    }
+    
     
     public void CheckWinCondition()
     {
       //if statement for the win
         {
             UIManager.Instance.ShowWinScreen();
+            ShowQuitButton();
             ShowMouse(true);
             Time.timeScale = 0;
             _gameOver = true;
@@ -79,6 +107,7 @@ public class GameManager : MonoBehaviour
         if (_gameOver) return;
         _gameOver = true;
         UIManager.Instance.ShowLoseScreen();
+        ShowQuitButton();
         ShowMouse(true);
         Time.timeScale = 0;
     }
@@ -87,6 +116,7 @@ public class GameManager : MonoBehaviour
     {
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
+        ResetButtons();
 #endif
         Application.Quit();
     }
