@@ -1,125 +1,265 @@
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
 public class GameManager : MonoBehaviour
 {
-    
-    /// <summary>
-    /// this should let you be able to quit at any point, I know you had some other ideas for the game but
-    /// I think its better to offer the choice to the player to quit rather than just playing over and over.
-    /// </summary>
-    ///
-    /// 
-    public static GameManager Instance;
-    
-    [SerializeField] private Button _resumeButton;
-    [SerializeField] private Button _quitButton;
-    
-    private bool _gameOver;
-    private AudioManager _audioManager;
-    private UIManager _uiManager;
-    
+    public static GameManager Instance { get; private set; }
+
+    [Header("Pause UI")]
+    [FormerlySerializedAs("_pausePanel")]
+    [SerializeField] private GameObject pausePanel;
+    [FormerlySerializedAs("_resumeButton")]
+    [SerializeField] private Button resumeButton;
+    [FormerlySerializedAs("_quitButton")]
+    [SerializeField] private Button quitButton;
+
+    [Header("Gameplay")]
+    [SerializeField] private BabyBalanceGame babyBalanceGame;
+
+    private bool isPaused;
+    private bool isEnding;
+    private AudioManager audioManager;
+
     private void Awake()
     {
-        if (Instance != null && Instance != this) Destroy(this);
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
-    }
-    
-    private void Start()
-    {
-        Time.timeScale = 1;
-        _audioManager = AudioManager.Instance;
-        _uiManager = UIManager.Instance;
-        ShowMouse(false);
-        _audioManager.PlayBGMusic();
-        _quitButton.onClick.AddListener(OnQuit);
-        _resumeButton.onClick.AddListener(OnResume);
+        FindReferences();
+        SetPausePanelVisible(false);
     }
 
     private void OnEnable()
     {
-        _resumeButton.onClick.AddListener(OnResume);
-        _quitButton.onClick.AddListener(OnQuit);
+        FindReferences();
+        RegisterButtonListeners();
     }
-    
+
     private void OnDisable()
     {
-        _resumeButton.onClick.RemoveListener(OnResume);
-        _quitButton.onClick.RemoveListener(OnQuit);
+        UnregisterButtonListeners();
     }
 
-    private void ShowMouse(bool value)
+    private void Start()
     {
-        Cursor.visible = value;
-        Cursor.lockState = value ? CursorLockMode.None : CursorLockMode.Locked;
-    }
-    
-    public void Pause()
-    {
-        if (_gameOver) return;
-        ShowMouse(true);
-        Time.timeScale = 0;
-        UIManager.Instance.ShowPauseMenu(true);
-        ShowResumeButton();
-        ShowQuitButton();
-    }
-    
-    private void OnResume()
-    {
-        if (_gameOver) return;
+        Time.timeScale = 1f;
+        isPaused = false;
+        isEnding = false;
+        audioManager = AudioManager.Instance;
+        audioManager?.PlayGameplayMusic();
         ShowMouse(false);
-        Time.timeScale = 1;
-        ResetButtons();
-        UIManager.Instance.ShowPauseMenu(false);
+        SetPausePanelVisible(false);
     }
 
-    private void ShowResumeButton()
+    private void Update()
     {
-        _resumeButton.gameObject.SetActive(true);
-    }
-
-    private void ShowQuitButton()
-    {
-        _quitButton.gameObject.SetActive(true); 
-    }
-
-    public void ResetButtons()
-    {
-        _resumeButton.gameObject.SetActive(false);
-        _quitButton.gameObject.SetActive(false);
-    }
-    
-    
-    public void CheckWinCondition()
-    {
-      //if statement for the win
+        if (WasPausePressed())
         {
-            UIManager.Instance.ShowWinScreen();
-            ShowQuitButton();
-            ShowMouse(true);
-            Time.timeScale = 0;
-            _gameOver = true;
+            TogglePause();
         }
     }
 
-    private void LoseFunction()
+    public void TogglePause()
     {
-        if (_gameOver) return;
-        _gameOver = true;
-        UIManager.Instance.ShowLoseScreen();
-        ShowQuitButton();
-        ShowMouse(true);
-        Time.timeScale = 0;
+        if (isPaused)
+        {
+            ResumeGame();
+            return;
+        }
+
+        PauseGame();
     }
-    
-    private void OnQuit()
+
+    public void Pause()
+    {
+        PauseGame();
+    }
+
+    public void PauseGame()
+    {
+        if (isEnding || IsGameEnded())
+        {
+            return;
+        }
+
+        isPaused = true;
+        Time.timeScale = 0f;
+        SetPausePanelVisible(true);
+        ShowMouse(true);
+    }
+
+    public void ResumeGame()
+    {
+        if (isEnding)
+        {
+            return;
+        }
+
+        isPaused = false;
+        Time.timeScale = 1f;
+        SetPausePanelVisible(false);
+        ShowMouse(false);
+    }
+
+    public void HandleGameWon()
+    {
+        isEnding = true;
+        isPaused = false;
+        Time.timeScale = 1f;
+        SetPausePanelVisible(false);
+        ShowMouse(true);
+
+        audioManager = AudioManager.Instance;
+        audioManager?.StopBabyCrying();
+        audioManager?.PlayWinSound();
+        audioManager?.PlayWinMusic();
+    }
+
+    public void HandleGameLost()
+    {
+        isEnding = true;
+        isPaused = false;
+        Time.timeScale = 1f;
+        SetPausePanelVisible(false);
+        ShowMouse(true);
+
+        audioManager = AudioManager.Instance;
+        audioManager?.StopBabyCrying();
+        audioManager?.PlayBabyDropScream();
+        audioManager?.PlayLoseMusic();
+    }
+
+    public void HandleGameRestarted()
+    {
+        isEnding = false;
+        isPaused = false;
+        Time.timeScale = 1f;
+        SetPausePanelVisible(false);
+        ShowMouse(false);
+
+        audioManager = AudioManager.Instance;
+        audioManager?.StopBabyCrying();
+        audioManager?.PlayGameplayMusic();
+    }
+
+    public void OnQuit()
     {
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
-        ResetButtons();
 #endif
         Application.Quit();
     }
 
-}
+    public void CheckWinCondition()
+    {
+        UIManager.Instance?.ShowWinScreen();
+        HandleGameWon();
+    }
 
+    public void ResetButtons()
+    {
+        SetPausePanelVisible(false);
+    }
+
+    private void RegisterButtonListeners()
+    {
+        if (resumeButton != null)
+        {
+            resumeButton.onClick.RemoveListener(ResumeGame);
+            resumeButton.onClick.AddListener(ResumeGame);
+        }
+
+        if (quitButton != null)
+        {
+            quitButton.onClick.RemoveListener(OnQuit);
+            quitButton.onClick.AddListener(OnQuit);
+        }
+    }
+
+    private void UnregisterButtonListeners()
+    {
+        if (resumeButton != null)
+        {
+            resumeButton.onClick.RemoveListener(ResumeGame);
+        }
+
+        if (quitButton != null)
+        {
+            quitButton.onClick.RemoveListener(OnQuit);
+        }
+    }
+
+    private void FindReferences()
+    {
+        if (babyBalanceGame == null)
+        {
+            babyBalanceGame = GetComponent<BabyBalanceGame>();
+        }
+
+        if (babyBalanceGame == null)
+        {
+            babyBalanceGame = FindFirstObjectByType<BabyBalanceGame>();
+        }
+
+        if (pausePanel == null)
+        {
+            GameObject pauseObject = GameObject.Find("PausePanel");
+            pausePanel = pauseObject;
+        }
+
+        if (resumeButton == null)
+        {
+            resumeButton = FindButton("ResumeButton");
+        }
+
+        if (quitButton == null)
+        {
+            quitButton = FindButton("QuitButton");
+        }
+    }
+
+    private void SetPausePanelVisible(bool visible)
+    {
+        if (pausePanel != null && pausePanel.activeSelf != visible)
+        {
+            pausePanel.SetActive(visible);
+        }
+    }
+
+    private bool IsGameEnded()
+    {
+        return babyBalanceGame != null && (babyBalanceGame.IsGameOver || babyBalanceGame.IsGameWon);
+    }
+
+    private static Button FindButton(string objectName)
+    {
+        GameObject buttonObject = GameObject.Find(objectName);
+        return buttonObject != null ? buttonObject.GetComponent<Button>() : null;
+    }
+
+    private static void ShowMouse(bool value)
+    {
+        Cursor.visible = value;
+        Cursor.lockState = value ? CursorLockMode.None : CursorLockMode.Locked;
+    }
+
+    private static bool WasPausePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.Escape);
+#endif
+    }
+}

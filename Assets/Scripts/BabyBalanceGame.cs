@@ -57,11 +57,14 @@ public class BabyBalanceGame : MonoBehaviour
     [Tooltip("Invoked once when the player survives long enough to win. Hook your win screen here.")]
     [SerializeField] private UnityEvent onWin = new UnityEvent();
 
+    [Tooltip("Invoked once when the player drops the baby. Hook lose screen or audio here if needed.")]
+    [SerializeField] private UnityEvent onLose = new UnityEvent();
+
     [Header("Restart")]
-    [Tooltip("If true, holding the balance button after losing restarts the game.")]
+    [Tooltip("If true, holding the balance button after winning or losing restarts the game.")]
     [SerializeField] private bool allowButtonToRestart = true;
 
-    [Tooltip("How long after losing the player must wait before the button can restart the game.")]
+    [Tooltip("How long after winning or losing the player must wait before the button can restart the game.")]
     [SerializeField, Min(0f)] private float restartDelay = 0.35f;
 
     private InputAction fallbackHoldAction;
@@ -154,7 +157,7 @@ public class BabyBalanceGame : MonoBehaviour
 
         if (isGameOver || isGameWon)
         {
-            if (allowButtonToRestart && Time.time >= endTime + restartDelay && isHolding)
+            if (allowButtonToRestart && Time.unscaledTime >= endTime + restartDelay && isHolding)
             {
                 RestartGame();
             }
@@ -257,17 +260,20 @@ public class BabyBalanceGame : MonoBehaviour
     private void LoseGame()
     {
         isGameOver = true;
-        endTime = Time.time;
+        endTime = Time.unscaledTime;
         SetBalance(balance);
         hud?.UpdateText(this);
+        onLose.Invoke();
+        GameManager.Instance?.HandleGameLost();
     }
 
     private void WinGame()
     {
         isGameWon = true;
-        endTime = Time.time;
+        endTime = Time.unscaledTime;
         hud?.UpdateText(this);
         onWin.Invoke();
+        GameManager.Instance?.HandleGameWon();
     }
 
     [ContextMenu("Restart Game")]
@@ -285,5 +291,6 @@ public class BabyBalanceGame : MonoBehaviour
         isGameOver = false;
         isGameWon = false;
         hud?.UpdateText(this);
+        GameManager.Instance?.HandleGameRestarted();
     }
 }

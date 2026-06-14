@@ -3,21 +3,22 @@ using UnityEngine.InputSystem;
 
 public class InputManager : MonoBehaviour
 {
-    [SerializeField] private InputAction _pauseInput;
-    
+    [SerializeField] private InputAction pauseInput = new InputAction("Pause", InputActionType.Button, "<Keyboard>/escape");
+
     private void OnEnable()
     {
-        _pauseInput.Enable();
-        _pauseInput.performed += OnPause;
+        pauseInput.performed += OnPause;
+        pauseInput.Enable();
     }
 
     private void OnDisable()
     {
-        _pauseInput.Disable();
-        _pauseInput.performed -= OnPause;
+        pauseInput.performed -= OnPause;
+        pauseInput.Disable();
     }
+
     public void OnPause(InputAction.CallbackContext context)
     {
-        GameManager.Instance.Pause();
+        GameManager.Instance?.TogglePause();
     }
 }

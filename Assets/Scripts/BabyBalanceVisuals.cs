@@ -82,6 +82,7 @@ public class BabyBalanceVisuals : MonoBehaviour
     private Quaternion rightArmStartRotation;
     private Quaternion babyStartRotation;
     private SpriteRenderer babyRenderer;
+    private bool isPlayingCryingSound;
 
     private void Reset()
     {
@@ -94,6 +95,7 @@ public class BabyBalanceVisuals : MonoBehaviour
         AutoFindSceneReferences();
         CacheBabyRenderer();
         CacheStartingPoses();
+        SetCryingSound(false);
     }
 
     public void UpdateVisuals(BabyBalanceGame game, BabyBalanceTargetChase targetChase, BabyBalanceMeter meter, float deltaTime)
@@ -230,6 +232,9 @@ public class BabyBalanceVisuals : MonoBehaviour
         {
             babyRenderer.sprite = expressionSprite;
         }
+
+        bool shouldPlayCryingSound = !game.IsGameOver && !game.IsGameWon && dangerAmount >= cryingDangerStartsAt;
+        SetCryingSound(shouldPlayCryingSound);
     }
 
     private Sprite GetBabyExpressionSprite(BabyBalanceGame game, float dangerAmount)
@@ -262,5 +267,21 @@ public class BabyBalanceVisuals : MonoBehaviour
     {
         GameObject found = GameObject.Find(objectName);
         return found != null ? found.transform : null;
+    }
+
+    private void OnDisable()
+    {
+        SetCryingSound(false);
+    }
+
+    private void SetCryingSound(bool shouldPlay)
+    {
+        if (isPlayingCryingSound == shouldPlay)
+        {
+            return;
+        }
+
+        isPlayingCryingSound = shouldPlay;
+        AudioManager.Instance?.SetBabyCrying(shouldPlay);
     }
 }
