@@ -59,10 +59,13 @@ public class TitleScreen : MonoBehaviour
 
     public void QuitGame()
     {
-#if UNITY_EDITOR
+#if UNITY_WEBGL && !UNITY_EDITOR
+        Debug.Log("Quit is not supported in WebGL builds. Use the browser or host page controls to leave the game.");
+#elif UNITY_EDITOR
         EditorApplication.isPlaying = false;
-#endif
+#else
         Application.Quit();
+#endif
     }
 
     public void OnButtonClicked()

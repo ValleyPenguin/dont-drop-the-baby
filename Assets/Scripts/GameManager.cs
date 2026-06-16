@@ -1,7 +1,5 @@
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
@@ -19,6 +17,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Button resumeButton;
     [FormerlySerializedAs("_quitButton")]
     [SerializeField] private Button quitButton;
+
+    [Header("Scenes")]
+    [SerializeField] private string mainMenuSceneName = "MainMenu";
 
     [Header("Gameplay")]
     [SerializeField] private BabyBalanceGame babyBalanceGame;
@@ -155,10 +156,30 @@ public class GameManager : MonoBehaviour
 
     public void OnQuit()
     {
-#if UNITY_EDITOR
-        EditorApplication.isPlaying = false;
-#endif
-        Application.Quit();
+        ReturnToMainMenu();
+    }
+
+    public void ReturnToMainMenu()
+    {
+        isPaused = false;
+        isEnding = false;
+        Time.timeScale = 1f;
+        SetPausePanelVisible(false);
+        ShowMouse(true);
+
+        audioManager = AudioManager.Instance;
+        audioManager?.StopBabyCrying();
+
+        if (!string.IsNullOrWhiteSpace(mainMenuSceneName) && Application.CanStreamedLevelBeLoaded(mainMenuSceneName))
+        {
+            SceneManager.LoadScene(mainMenuSceneName);
+            return;
+        }
+
+        if (SceneManager.sceneCountInBuildSettings > 0)
+        {
+            SceneManager.LoadScene(0);
+        }
     }
 
     public void CheckWinCondition()
